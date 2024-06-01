@@ -51,6 +51,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.io.Serializable;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -71,25 +72,25 @@ abstract public class SVGElement implements Serializable
     public static final long serialVersionUID = 0;
     public static final String SVG_NS = "http://www.w3.org/2000/svg";
     protected SVGElement parent = null;
-    protected final ArrayList<SVGElement> children = new ArrayList<SVGElement>();
+    protected final ArrayList<SVGElement> children = new ArrayList<>();
     protected String id = null;
     /**
      * CSS class. Used for applying style sheet information.
      */
     protected String cssClass = null;
     /**
-     * Styles defined for this elemnt via the <b>style</b> attribute.
+     * Styles defined for this element via the <b>style</b> attribute.
      */
-    protected final HashMap<String, StyleAttribute> inlineStyles = new HashMap<String, StyleAttribute>();
+    protected final HashMap<String, StyleAttribute> inlineStyles = new HashMap<>();
     /**
      * Presentation attributes set for this element. Ie, any attribute other
      * than the <b>style</b> attribute.
      */
-    protected final HashMap<String, StyleAttribute> presAttribs = new HashMap<String, StyleAttribute>();
+    protected final HashMap<String, StyleAttribute> presAttribs = new HashMap<>();
     /**
      * This element may override the URI we resolve against with an xml:base
      * attribute. If so, a copy is placed here. Otherwise, we defer to our
-     * parent for the reolution base
+     * parent for the resolution base
      */
     protected URI xmlBase = null;
     /**
@@ -142,7 +143,7 @@ abstract public class SVGElement implements Serializable
     {
         if (retVec == null)
         {
-            retVec = new ArrayList<SVGElement>();
+            retVec = new ArrayList<>();
         }
 
         if (parent != null)
@@ -164,7 +165,7 @@ abstract public class SVGElement implements Serializable
     {
         if (retVec == null)
         {
-            retVec = new ArrayList<SVGElement>();
+            retVec = new ArrayList<>();
         }
 
         retVec.addAll(children);
@@ -261,7 +262,7 @@ abstract public class SVGElement implements Serializable
             try
             {
                 xmlBase = new URI(base);
-            } catch (Exception e)
+            } catch (URISyntaxException e)
             {
                 throw new SAXException(e);
             }
@@ -284,10 +285,9 @@ abstract public class SVGElement implements Serializable
         {
             case AnimationElement.AT_CSS:
                 inlineStyles.remove(name);
-                return;
+                break;
             case AnimationElement.AT_XML:
                 presAttribs.remove(name);
-                return;
         }
     }
 
@@ -468,7 +468,7 @@ abstract public class SVGElement implements Serializable
     {
         return id;
     }
-    LinkedList<SVGElement> contexts = new LinkedList<SVGElement>();
+    LinkedList<SVGElement> contexts = new LinkedList<>();
 
     /**
      * Hack to allow nodes to temporarily change their parents. The Use tag will
@@ -576,6 +576,7 @@ abstract public class SVGElement implements Serializable
      * found.
      * @param evalAnimation
      * @return 
+     * @throws com.kitfox.svg.SVGException 
      */
     public boolean getStyle(StyleAttribute attrib, boolean recursive, boolean evalAnimation)
             throws SVGException
@@ -746,7 +747,7 @@ abstract public class SVGElement implements Serializable
 
         String function = matchWord.group().toLowerCase();
 
-        LinkedList<String> termList = new LinkedList<String>();
+        LinkedList<String> termList = new LinkedList<>();
         while (matchWord.find())
         {
             termList.add(matchWord.group());
@@ -762,45 +763,42 @@ abstract public class SVGElement implements Serializable
         }
 
         //Calculate transformation
-        if (function.equals("matrix"))
-        {
-            retXform.setTransform(terms[0], terms[1], terms[2], terms[3], terms[4], terms[5]);
-        } else if (function.equals("translate"))
-        {
-            if (terms.length == 1)
-            {
-                retXform.setToTranslation(terms[0], 0);
-            } else
-            {
-                retXform.setToTranslation(terms[0], terms[1]);
-            }
-        } else if (function.equals("scale"))
-        {
-            if (terms.length > 1)
-            {
-                retXform.setToScale(terms[0], terms[1]);
-            } else
-            {
-                retXform.setToScale(terms[0], terms[0]);
-            }
-        } else if (function.equals("rotate"))
-        {
-            if (terms.length > 2)
-            {
-                retXform.setToRotation(Math.toRadians(terms[0]), terms[1], terms[2]);
-            } else
-            {
-                retXform.setToRotation(Math.toRadians(terms[0]));
-            }
-        } else if (function.equals("skewx"))
-        {
-            retXform.setToShear(Math.toRadians(terms[0]), 0.0);
-        } else if (function.equals("skewy"))
-        {
-            retXform.setToShear(0.0, Math.toRadians(terms[0]));
-        } else
-        {
-            throw new SVGException("Unknown transform type");
+        switch (function) {
+            case "matrix":
+                retXform.setTransform(terms[0], terms[1], terms[2], terms[3], terms[4], terms[5]);
+                break;
+            case "translate":
+                if (terms.length == 1)
+                {
+                    retXform.setToTranslation(terms[0], 0);
+                } else
+                {
+                    retXform.setToTranslation(terms[0], terms[1]);
+                }   break;
+            case "scale":
+                if (terms.length > 1)
+                {
+                    retXform.setToScale(terms[0], terms[1]);
+                } else
+                {
+                    retXform.setToScale(terms[0], terms[0]);
+                }   break;
+            case "rotate":
+                if (terms.length > 2)
+                {
+                    retXform.setToRotation(Math.toRadians(terms[0]), terms[1], terms[2]);
+                } else
+                {
+                    retXform.setToRotation(Math.toRadians(terms[0]));
+                }   break;
+            case "skewx":
+                retXform.setToShear(Math.toRadians(terms[0]), 0.0);
+                break;
+            case "skewy":
+                retXform.setToShear(0.0, Math.toRadians(terms[0]));
+                break;
+            default:
+                throw new SVGException("Unknown transform type");
         }
 
         return retXform;
@@ -816,9 +814,8 @@ abstract public class SVGElement implements Serializable
         PathCommand[] commands = parsePathList(text);
 
         int numKnots = 2;
-        for (int i = 0; i < commands.length; i++)
-        {
-            numKnots += commands[i].getNumKnotsAdded();
+        for (PathCommand command : commands) {
+            numKnots += command.getNumKnotsAdded();
         }
 
 
@@ -826,9 +823,7 @@ abstract public class SVGElement implements Serializable
 
         BuildHistory hist = new BuildHistory();
 
-        for (int i = 0; i < commands.length; i++)
-        {
-            PathCommand cmd = commands[i];
+        for (PathCommand cmd : commands) {
             cmd.appendPath(path, hist);
         }
 

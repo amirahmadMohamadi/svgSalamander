@@ -33,9 +33,7 @@
  *
  * Created on February 18, 2004, 5:09 PM
  */
-
 package com.kitfox.svg;
-
 
 import java.util.*;
 import java.net.*;
@@ -43,6 +41,7 @@ import org.xml.sax.*;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.kitfox.svg.animation.*;
+import java.lang.reflect.InvocationTargetException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -50,13 +49,14 @@ import java.util.logging.Logger;
  * @author Mark McKay
  * @author <a href="mailto:mark@kitfox.com">Mark McKay</a>
  */
-public class SVGLoader extends DefaultHandler
-{
-    final HashMap<String, Class<?>> nodeClasses = new HashMap<String, Class<?>>();
-    //final HashMap attribClasses = new HashMap();
-    final LinkedList<SVGElement> buildStack = new LinkedList<SVGElement>();
+public class SVGLoader extends DefaultHandler {
 
-    final HashSet<String> ignoreClasses = new HashSet<String>();
+    final HashMap<String, Class<?>> nodeClasses = new HashMap<>();
+    //final HashMap attribClasses = new HashMap();
+    final LinkedList<SVGElement> buildStack = new LinkedList<>();
+    final LinkedList<NonSVGElement> metadaStack = new LinkedList<>();
+
+    final HashSet<String> ignoreClasses = new HashSet<>();
 
     final SVGLoaderHelper helper;
 
@@ -67,27 +67,25 @@ public class SVGLoader extends DefaultHandler
     final SVGDiagram diagram;
 
 //    SVGElement loadRoot;
-
     //Used to keep track of document elements that are not part of the SVG namespace
     int skipNonSVGTagDepth = 0;
     int indent = 0;
 
     final boolean verbose;
-    
+
     /**
      * Creates a new instance of SVGLoader
+     *
      * @param xmlBase
      * @param universe
      */
-    public SVGLoader(URI xmlBase, SVGUniverse universe)
-    {
+    public SVGLoader(URI xmlBase, SVGUniverse universe) {
         this(xmlBase, universe, false);
     }
-    
-    public SVGLoader(URI xmlBase, SVGUniverse universe, boolean verbose)
-    {
+
+    public SVGLoader(URI xmlBase, SVGUniverse universe, boolean verbose) {
         this.verbose = verbose;
-        
+
         diagram = new SVGDiagram(xmlBase, universe);
 
         //Compile a list of important builder classes
@@ -136,60 +134,54 @@ public class SVGLoader extends DefaultHandler
 
         //attribClasses.put("clip-path", StyleUrl.class);
         //attribClasses.put("color", StyleColor.class);
-
         helper = new SVGLoaderHelper(xmlBase, universe, diagram);
     }
 
-    private String printIndent(int indent, String indentStrn)
-    {
-        StringBuffer sb = new StringBuffer();
-        for (int i = 0; i < indent; i++)
-        {
+    private String printIndent(int indent, String indentStrn) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < indent; i++) {
             sb.append(indentStrn);
         }
         return sb.toString();
     }
-    
+
     @Override
-    public void startDocument() throws SAXException
-    {
+    public void startDocument() throws SAXException {
 //        System.err.println("Start doc");
 
 //        buildStack.clear();
     }
 
     @Override
-    public void endDocument() throws SAXException
-    {
+    public void endDocument() throws SAXException {
 //        System.err.println("End doc");
     }
 
     @Override
-    public void startElement(String namespaceURI, String sName, String qName, Attributes attrs) throws SAXException
-    {
-        if (verbose)
-        {
-            System.err.println(printIndent(indent, " ") + "Starting parse of tag " + sName+ ": " + namespaceURI);
+    public void startElement(String namespaceURI, String sName, String qName, Attributes attrs) throws SAXException {
+        if (verbose) {
+            System.err.println(printIndent(indent, " ") + "Starting parse of tag " + sName + ": " + namespaceURI);
         }
         indent++;
-        
-        if (skipNonSVGTagDepth != 0 || (!namespaceURI.equals("") && !namespaceURI.equals(SVGElement.SVG_NS)))
-        {
+
+        if (!buildStack.isEmpty() && buildStack.getLast().getTagName().equals(Metadata.TAG_NAME)) {
+            skipNonSVGTagDepth++;
+            processMetadata(namespaceURI, sName, qName, attrs);
+            return;
+        }
+
+        if (skipNonSVGTagDepth != 0 || (!namespaceURI.equals("") && !namespaceURI.equals(SVGElement.SVG_NS))) {
             skipNonSVGTagDepth++;
             return;
         }
-        
+
         sName = sName.toLowerCase();
 
 //javax.swing.JOptionPane.showMessageDialog(null, sName);
-
         Object obj = nodeClasses.get(sName);
-        if (obj == null)
-        {
-            if (!ignoreClasses.contains(sName))
-            {
-                if (verbose)
-                {
+        if (obj == null) {
+            if (!ignoreClasses.contains(sName)) {
+                if (verbose) {
                     System.err.println("SVGLoader: Could not identify tag '" + sName + "'");
                 }
             }
@@ -199,21 +191,20 @@ public class SVGLoader extends DefaultHandler
 //Debug info tag depth
 //for (int i = 0; i < buildStack.size(); i++) System.err.print(" ");
 //System.err.println("+" + sName);
-
         try {
-            Class<?> cls = (Class<?>)obj;
-            SVGElement svgEle = (SVGElement)cls.newInstance();
+            Class<?> cls = (Class<?>) obj;
+            SVGElement svgEle = (SVGElement) cls.getDeclaredConstructor().newInstance();
 
             SVGElement parent = null;
-            if (buildStack.size() != 0) parent = (SVGElement)buildStack.getLast();
+            if (!buildStack.isEmpty()) {
+                parent = (SVGElement) buildStack.getLast();
+            }
             svgEle.loaderStartElement(helper, attrs, parent);
 
             buildStack.addLast(svgEle);
-        }
-        catch (Exception e)
-        {
-            Logger.getLogger(SVGConst.SVG_LOGGER).log(Level.WARNING, 
-                "Could not load", e);
+        } catch (IllegalAccessException | IllegalArgumentException | InstantiationException | NoSuchMethodException | SecurityException | InvocationTargetException | SAXException e) {
+            Logger.getLogger(SVGConst.SVG_LOGGER).log(Level.WARNING,
+                    "Could not load", e);
             throw new SAXException(e);
         }
 
@@ -221,71 +212,63 @@ public class SVGLoader extends DefaultHandler
 
     @Override
     public void endElement(String namespaceURI, String sName, String qName)
-        throws SAXException
-    {
+            throws SAXException {
         indent--;
-        if (verbose)
-        {
-            System.err.println(printIndent(indent, " ") + "Ending parse of tag " + sName+ ": " + namespaceURI);
+        if (verbose) {
+            System.err.println(printIndent(indent, " ") + "Ending parse of tag " + sName + ": " + namespaceURI);
         }
-        
-        if (skipNonSVGTagDepth != 0)
-        {
+
+        if (skipNonSVGTagDepth != 0) {
             skipNonSVGTagDepth--;
+            if (!metadaStack.isEmpty()) {
+                metadaStack.removeLast();
+            }
             return;
         }
-        
+
         sName = sName.toLowerCase();
 
         Object obj = nodeClasses.get(sName);
-        if (obj == null) return;
+        if (obj == null) {
+            return;
+        }
 
 //Debug info tag depth
 //for (int i = 0; i < buildStack.size(); i++) System.err.print(" ");
 //System.err.println("-" + sName);
-
         try {
-            SVGElement svgEle = (SVGElement)buildStack.removeLast();
+            SVGElement svgEle = (SVGElement) buildStack.removeLast();
 
             svgEle.loaderEndElement(helper);
 
             SVGElement parent = null;
-            if (buildStack.size() != 0)
-            {
-                parent = (SVGElement)buildStack.getLast();
+            if (!buildStack.isEmpty()) {
+                parent = (SVGElement) buildStack.getLast();
             }
             //else loadRoot = (SVGElement)svgEle;
 
-            if (parent != null)
-            {
+            if (parent != null) {
                 parent.loaderAddChild(helper, svgEle);
-            }
-            else
-            {
-                diagram.setRoot((SVGRoot)svgEle);
+            } else {
+                diagram.setRoot((SVGRoot) svgEle);
             }
 
-        }
-        catch (Exception e)
-        {
-            Logger.getLogger(SVGConst.SVG_LOGGER).log(Level.WARNING, 
-                "Could not parse", e);
+        } catch (SVGElementException | SVGParseException e) {
+            Logger.getLogger(SVGConst.SVG_LOGGER).log(Level.WARNING,
+                    "Could not parse", e);
             throw new SAXException(e);
         }
     }
 
     @Override
     public void characters(char buf[], int offset, int len)
-        throws SAXException
-    {
-        if (skipNonSVGTagDepth != 0)
-        {
+            throws SAXException {
+        if (skipNonSVGTagDepth != 0) {
             return;
         }
 
-        if (buildStack.size() != 0)
-        {
-            SVGElement parent = (SVGElement)buildStack.getLast();
+        if (!buildStack.isEmpty()) {
+            SVGElement parent = (SVGElement) buildStack.getLast();
             String s = new String(buf, offset, len);
             parent.loaderAddText(helper, s);
         }
@@ -293,11 +276,36 @@ public class SVGLoader extends DefaultHandler
 
     @Override
     public void processingInstruction(String target, String data)
-        throws SAXException
-    {
+            throws SAXException {
         //Check for external style sheet
     }
-    
+
 //    public SVGElement getLoadRoot() { return loadRoot; }
-    public SVGDiagram getLoadedDiagram() { return diagram; }
+    public SVGDiagram getLoadedDiagram() {
+        return diagram;
+    }
+
+    private void processMetadata(String namespaceURI, String sName, String qName, Attributes attrs) {
+        NonSVGElement nonSvgEle = new NonSVGElement();
+        nonSvgEle.setTagName(sName);
+        nonSvgEle.setNsUri(namespaceURI);
+        nonSvgEle.setQName(qName);
+
+        int numAttrs = attrs.getLength();
+        for (int i = 0; i < numAttrs; i++) {
+            String name = attrs.getQName(i).intern();
+            String value = attrs.getValue(i);
+
+            nonSvgEle.getAttributes().put(name, value);
+        }
+
+        if (metadaStack.isEmpty()) {
+            Metadata parent = (Metadata) buildStack.getLast();
+            parent.addChild(nonSvgEle);
+        } else {
+            metadaStack.getLast().addChild(nonSvgEle);
+        }
+        metadaStack.add(nonSvgEle);
+
+    }
 }

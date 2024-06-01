@@ -74,6 +74,11 @@ public class SVGPanel extends JPanel
         initComponents();
     }
         
+    public AffineTransform getTransform()
+    {
+        return scaleXform;
+    }
+    
     public int getSVGHeight()
     {
         if (autosize == AUTOSIZE_VERT || autosize == AUTOSIZE_STRETCH 
@@ -154,23 +159,23 @@ public class SVGPanel extends JPanel
         
         double scaleW = 1;
         double scaleH = 1;
-        if (autosize == AUTOSIZE_BESTFIT)
-        {
-            scaleW = scaleH = (height / diaHeight < width / diaWidth) 
-                    ? height / diaHeight : width / diaWidth;
-        }
-        else if (autosize == AUTOSIZE_HORIZ)
-        {
-            scaleW = scaleH = width / diaWidth;
-        }
-        else if (autosize == AUTOSIZE_VERT)
-        {
-            scaleW = scaleH = height / diaHeight;
-        }
-        else if (autosize == AUTOSIZE_STRETCH)
-        {
-            scaleW = width / diaWidth;
-            scaleH = height / diaHeight;
+        switch (autosize) {
+            case AUTOSIZE_BESTFIT:
+                scaleW = scaleH = (height / diaHeight < width / diaWidth)
+                        ? height / diaHeight : width / diaWidth;
+                break;
+            case AUTOSIZE_HORIZ:
+                scaleW = scaleH = width / diaWidth;
+                break;
+            case AUTOSIZE_VERT:
+                scaleW = scaleH = height / diaHeight;
+                break;
+            case AUTOSIZE_STRETCH:
+                scaleW = width / diaWidth;
+                scaleH = height / diaHeight;
+                break;
+            default:
+                break;
         }
         scaleXform.setToScale(scaleW, scaleH);
         
