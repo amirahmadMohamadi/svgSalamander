@@ -35,32 +35,43 @@
  */
 package com.kitfox.svg;
 
+import java.util.ArrayList;
+
 /**
  * Does not hold any information. Included to allow metadata tag to be parsed.
  *
  * @author Mark McKay
  * @author <a href="mailto:mark@kitfox.com">Mark McKay</a>
  */
-public class Metadata extends SVGElement
-{
+public class Metadata extends SVGElement {
+
     public static final String TAG_NAME = "metadata";
+
+    protected final ArrayList<NonSVGElement> metdataChildren = new ArrayList<>();
 
     /**
      * Creates a new instance of Stop
      */
-    public Metadata()
-    {
+    public Metadata() {
     }
 
     @Override
-    public String getTagName()
-    {
+    public String getTagName() {
         return TAG_NAME;
     }
 
     @Override
-    public boolean updateTime(double curTime)
-    {
+    public boolean updateTime(double curTime) {
         return false;
+    }
+    
+    public ArrayList<NonSVGElement> getMetadata()
+    {
+        return this.metdataChildren;
+    }
+    
+    public void addChild(NonSVGElement element)
+    {
+        this.metdataChildren.add(element);
     }
 }

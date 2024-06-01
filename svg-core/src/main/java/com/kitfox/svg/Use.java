@@ -38,6 +38,7 @@ package com.kitfox.svg;
 import com.kitfox.svg.xml.StyleAttribute;
 import java.awt.Graphics2D;
 import java.awt.Shape;
+import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.net.URI;
@@ -46,10 +47,10 @@ import java.net.URI;
  * @author Mark McKay
  * @author <a href="mailto:mark@kitfox.com">Mark McKay</a>
  */
-public class Use extends ShapeElement
-{
+public class Use extends ShapeElement {
+
     public static final String TAG_NAME = "use";
-    
+
     float x = 0f;
     float y = 0f;
     float width = 1f;
@@ -61,58 +62,63 @@ public class Use extends ShapeElement
     /**
      * Creates a new instance of LinearGradient
      */
-    public Use()
-    {
+    public Use() {
     }
 
     @Override
-    public String getTagName()
-    {
+    public String getTagName() {
         return TAG_NAME;
     }
 
     @Override
-    protected void build() throws SVGException
-    {
+    protected void build() throws SVGException {
         super.build();
 
         StyleAttribute sty = new StyleAttribute();
 
-        if (getPres(sty.setName("x")))
-        {
+        if (getPres(sty.setName("x"))) {
             x = sty.getFloatValueWithUnits();
         }
 
-        if (getPres(sty.setName("y")))
-        {
+        if (getPres(sty.setName("y"))) {
             y = sty.getFloatValueWithUnits();
         }
 
-        if (getPres(sty.setName("width")))
-        {
+        if (getPres(sty.setName("width"))) {
             width = sty.getFloatValueWithUnits();
         }
 
-        if (getPres(sty.setName("height")))
-        {
+        if (getPres(sty.setName("height"))) {
             height = sty.getFloatValueWithUnits();
         }
 
-        if (getPres(sty.setName("xlink:href")))
-        {
+        if (getPres(sty.setName("xlink:href"))) {
             URI src = sty.getURIValue(getXMLBase());
             href = src;
 //            href = diagram.getUniverse().getElement(src);
         }
 
         //Determine use offset/scale
-        refXform = new AffineTransform();
-        refXform.translate(this.x, this.y);
+        SVGElement element = diagram.getUniverse().getElement(href);
+        if (element instanceof SVGRoot) {
+            Rectangle r = new Rectangle((int) x, (int) y, (int) width, (int) height);
+            Rectangle r2 = ((SVGRoot) element).getShape().getBounds();
+
+            refXform = new AffineTransform();
+            refXform.setToTranslation(r.x, r.y);
+            refXform.scale(r.width, r.height);
+            refXform.scale(1 / r2.getWidth(), 1 / r2.getHeight());
+            refXform.translate(-r2.getX(), -r2.getY());
+
+            refXform = ((SVGRoot) element).calcViewportTransform(r);
+        } else {
+            refXform = new AffineTransform();
+            refXform.translate(this.x, this.y);
+        }
     }
 
     @Override
-    protected void doRender(Graphics2D g) throws SVGException
-    {
+    protected void doRender(Graphics2D g) throws SVGException {
         beginLayer(g);
 
         //AffineTransform oldXform = g.getTransform();
@@ -121,12 +127,11 @@ public class Use extends ShapeElement
 
         SVGElement ref = diagram.getUniverse().getElement(href);
 
-        if (ref == null || !(ref instanceof RenderableElement))
-        {
+        if (ref == null || !(ref instanceof RenderableElement)) {
             return;
         }
 
-        RenderableElement rendEle = (RenderableElement)ref;
+        RenderableElement rendEle = (RenderableElement) ref;
         rendEle.pushParentContext(this);
         rendEle.render(g);
         rendEle.popParentContext();
@@ -137,11 +142,9 @@ public class Use extends ShapeElement
     }
 
     @Override
-    public Shape getShape()
-    {
+    public Shape getShape() {
         SVGElement ref = diagram.getUniverse().getElement(href);
-        if (ref instanceof ShapeElement)
-        {
+        if (ref instanceof ShapeElement) {
             Shape shape = ((ShapeElement) ref).getShape();
             shape = refXform.createTransformedShape(shape);
             shape = shapeToParent(shape);
@@ -152,11 +155,9 @@ public class Use extends ShapeElement
     }
 
     @Override
-    public Rectangle2D getBoundingBox() throws SVGException
-    {
+    public Rectangle2D getBoundingBox() throws SVGException {
         SVGElement ref = diagram.getUniverse().getElement(href);
-        if (ref instanceof ShapeElement)
-        {
+        if (ref instanceof ShapeElement) {
             ShapeElement shapeEle = (ShapeElement) ref;
             shapeEle.pushParentContext(this);
             Rectangle2D bounds = shapeEle.getBoundingBox();
@@ -179,8 +180,7 @@ public class Use extends ShapeElement
      * update
      */
     @Override
-    public boolean updateTime(double curTime) throws SVGException
-    {
+    public boolean updateTime(double curTime) throws SVGException {
 //        if (trackManager.getNumTracks() == 0) return false;
         boolean changeState = super.updateTime(curTime);
 
@@ -188,52 +188,42 @@ public class Use extends ShapeElement
         StyleAttribute sty = new StyleAttribute();
         boolean shapeChange = false;
 
-        if (getPres(sty.setName("x")))
-        {
+        if (getPres(sty.setName("x"))) {
             float newVal = sty.getFloatValueWithUnits();
-            if (newVal != x)
-            {
+            if (newVal != x) {
                 x = newVal;
                 shapeChange = true;
             }
         }
 
-        if (getPres(sty.setName("y")))
-        {
+        if (getPres(sty.setName("y"))) {
             float newVal = sty.getFloatValueWithUnits();
-            if (newVal != y)
-            {
+            if (newVal != y) {
                 y = newVal;
                 shapeChange = true;
             }
         }
 
-        if (getPres(sty.setName("width")))
-        {
+        if (getPres(sty.setName("width"))) {
             float newVal = sty.getFloatValueWithUnits();
-            if (newVal != width)
-            {
+            if (newVal != width) {
                 width = newVal;
                 shapeChange = true;
             }
         }
 
-        if (getPres(sty.setName("height")))
-        {
+        if (getPres(sty.setName("height"))) {
             float newVal = sty.getFloatValueWithUnits();
-            if (newVal != height)
-            {
+            if (newVal != height) {
                 height = newVal;
                 shapeChange = true;
             }
         }
 
-        if (getPres(sty.setName("xlink:href")))
-        {
+        if (getPres(sty.setName("xlink:href"))) {
             URI src = sty.getURIValue(getXMLBase());
 //            SVGElement newVal = diagram.getUniverse().getElement(src);
-            if (!src.equals(href))
-            {
+            if (!src.equals(href)) {
                 href = src;
                 shapeChange = true;
             }
@@ -250,8 +240,7 @@ public class Use extends ShapeElement
          refXform.translate(this.x, this.y);
          refXform.scale(this.width, this.height);
          */
-        if (shapeChange)
-        {
+        if (shapeChange) {
             build();
             //Determine use offset/scale
 //            refXform.setToTranslation(this.x, this.y);

@@ -62,7 +62,7 @@ public class SVGDiagram implements Serializable
     public static final long serialVersionUID = 0;
 
     //Indexes elements within this SVG diagram
-    final HashMap<String, SVGElement> idMap = new HashMap<String, SVGElement>();
+    final HashMap<String, SVGElement> idMap = new HashMap<>();
 
     SVGRoot root;
     final SVGUniverse universe;
@@ -147,7 +147,7 @@ public class SVGDiagram implements Serializable
     {
         if (retVec == null)
         {
-            retVec = new ArrayList<List<SVGElement>>();
+            retVec = new ArrayList<>();
         }
 
         root.pick(point, boundingBox, retVec);
@@ -164,7 +164,7 @@ public class SVGDiagram implements Serializable
     {
         if (retVec == null)
         {
-            retVec = new ArrayList<List<SVGElement>>();
+            retVec = new ArrayList<>();
         }
 
         root.pick(pickArea, new AffineTransform(), boundingBox, retVec);
